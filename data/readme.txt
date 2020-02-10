@@ -1,0 +1,9 @@
+This folder does not contain all the data that is necessary for this project. Twitter data, precipitation data and terrain data must be built using scripts in the "pandafy_data" folder. These scripts turn the raw data into pandas dataframes and store them in .csv files.
+
+Eindrapport Afstudeer opdracht Thijs Kroep 'De effecten van hevige regenbuien volgens inwoners'.pdf: Thesis of Thijs Kroep. This thesis is the basis for this project. Twitter was scraped by the search terms defined in this thesis: (nat OR natte OR water OR wateroverlast OR regen OR storm OR blank OR bui OR overstroming OR hoosbui OR schade OR noodweer OR wolkbreuk OR waterschade)
+
+Excel sheet afstudeeropdracht Thijs Kroep.csv & Excel sheet afstudeeropdracht Thijs Kroep.xlsx: Hand selected instances of flooding being reported in various types of media.
+
+hdftag35.pdf: Documentation on the KNMI .h5 file format. The "RAD_NL25_RAC_MFBS" dataset is in this format (link: https://data.knmi.nl/datasets/rad_nl25_rac_mfbs_01h/2.0).
+
+radar.json: This file contains information of the relation between radar (KNMI) pixel's y,x coordinates and longitude (Lengtegraad) and latitude (Breedtegraad). Note that the definition of y and x are swapped in this file. The y axis corresponds to the horizontal axis (latitude), while the x axis corresponds to the vertical axis (longitude). In the rest of the project, y always corresponds to vertical and longitude, and x always corresponds to horizontal and latitude. I recommend not using this file, since it only contains a small subset of all the pixels in the KNMI data and the y,x convention is broken. It does contain useful information about wether or not an area has buildings on it (Bebouwd). If this information is to be used, I recommend scraping it from a raw source.

@@ -1,0 +1,2 @@
+#!/bin/bash
+lynx --dump https://geodata.nationaalgeoregister.nl/ahn2/atom/ahn2_5m.xml | awk '/http/{print $2}' | grep http > temp_file.txt
