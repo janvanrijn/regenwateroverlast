@@ -16,7 +16,8 @@ def start_here():
     #
     #The last 2.5 months I have put a lot of effort in the project you now have 
     #before you. I think the project has great potential and hope you enjoy 
-    #working on it, while taking it to the next level.
+    #working on it, just as much as I have. I really hope you can take it to the 
+    #next level.
     
     #The aim of this project was to combine data of three different sources and 
     #to build a proof-of-concept model. The three different sources are:
