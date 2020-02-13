@@ -19,12 +19,12 @@ for i in range(len(img_r)):
             img_g[i][j] = 255
             img_b[i][j] = 255
         else: 
-            img_r[i][j] = 122
-            img_g[i][j] = 122
-            img_b[i][j] = 122
-folder = '../../pandafied_data_backup/'
+            img_r[i][j] = 127
+            img_g[i][j] = 127
+            img_b[i][j] = 127
+folder = '../../pandafied_data/'
 #threshold = pd.read_csv(folder + 'threshold.csv')
-threshold = pd.read_csv(folder + 'n_threshold/n_threshold0.csv')
+threshold = pd.read_csv(folder + 'n_threshold/n_threshold0_backup.csv')
 twit_max = np.max(threshold['num_tweets'].values.tolist())
 twit_norm = 1
 for i in range(len(threshold.index)):
@@ -37,9 +37,13 @@ for i in range(len(threshold.index)):
     if math.isnan(threshold['num_tweets'][i]):
         img_r[y][x] = 0
         img_g[y][x] = 0
+        #img_b[y][x] = val//2+128
         img_b[y][x] = val
     else:
-        img_r[y][x] = 255*min(twit_norm,threshold['num_tweets'][i])//twit_norm
+        #img_r[y][x] = 255*min(twit_norm,threshold['num_tweets'][i])//twit_norm
+        #img_g[y][x] = val
+        #img_b[y][x] = 0
+        img_r[y][x] = 255
         img_g[y][x] = val
         img_b[y][x] = 0
 print(twit_norm)

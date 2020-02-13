@@ -139,7 +139,7 @@ def start_here():
     
     parameters['pooling_factor_vars'] = [1,2,5,10]#parameters specific to this experiment. Four autoencoders will be build and trained, containing an inner-most pooling layer with a factor of 1, 2, 5 and 10.
         
-    skip_train_autoencoder = True
+    skip_train_autoencoder = False
     if not skip_train_autoencoder:
         import experiments.class_experiment as class_experiment
         #Now that the parameters are set, it is time to make an instance of an experiment:
@@ -168,7 +168,7 @@ def start_here():
         import pandafy_data.pandafy_all as pandafy_all
         encoder_file_name = 'results/tutorial_experiment/pool_1_encoder'#encoder trained in previous step
         history_file = 'results/tutorial_experiment/pool_1_history.json'#history of encoder in previous step
-        pandafy_all.pandafy_all(super_folder='../',encoder_file_name=encoder_file_name,history_file=history_file,parameters=parameters)
+        pandafy_all.pandafy_all(super_folder='../',encoder_file_name=encoder_file_name,history_file=history_file,parameters=parameters,radar_feat_save_name='pandafied_data/pandafied_h5_radar_feat_tutorial.csv')
     
     #---------------------------------------------------------------------------
     #Analyze data / build model
@@ -179,7 +179,7 @@ def start_here():
     skip_analyze = False
     if not skip_analyze:
         import pandafy_data.analyse_pandafied as analyse_pandafied
-        analyse_pandafied.analyse_twitter(folder='../pandafied_data/')
+        analyse_pandafied.analyse_twitter(folder='../pandafied_data/',feature_file='pandafied_h5_radar_feat_tutorial.csv')
 
 
 if __name__ == '__main__':

@@ -193,7 +193,7 @@ def combine(all_ensembles):
     
     return final_ensemble
 
-def load_pandafied(folder='../../pandafied_data/'):
+def load_pandafied(folder='../../pandafied_data/',feature_file='pandafied_h5_radar_img_raw_NO_SOBEL.csv'):
     #rain = pd.read_csv(folder + 'pandafied_rain.csv')
     print("load 1")
     #rain = pd.read_csv(folder + 'pandafied_h5_rain.csv')
@@ -201,7 +201,8 @@ def load_pandafied(folder='../../pandafied_data/'):
     print("load 2")
     #radar = pd.read_csv(folder + 'pandafied_h5_radar_img.csv')#[0:5000]
     #radar = pd.read_csv(folder + 'pandafied_h5_radar_img_raw.csv')
-    radar = pd.read_csv(folder + 'pandafied_h5_radar_img_raw_NO_SOBEL.csv')#[0:5000]
+    #radar = pd.read_csv(folder + 'pandafied_h5_radar_img_raw_NO_SOBEL.csv')#[0:5000]
+    radar = pd.read_csv(folder + feature_file)[0:5000]
     #radar = pd.read_csv(folder + 'pandafied_h5_radar.csv')
     #file = pd.read_csv(folder + 'lat_lon_to_filename.csv')
     #tweets = pd.read_csv(folder + 'curated_twitter.csv')
@@ -254,13 +255,15 @@ def equalize_data(data):
     print(len(data))
     return data.reset_index(drop=True)
 
-def n_fold_cross_validation(data,radar,n=10,it=1,seed=42,step_size=1000,folder='../../pandafied_data_backup/'):
+def n_fold_cross_validation(data,radar,n=10,it=1,seed=42,step_size=1000,folder='../../pandafied_data/'):
+    '''
+        This function builds n models on n disjoint train sets and tests where the rain threshold lies on n disjoint test sets. Then it tests where the threshold lies on the points that are not in the train and test set, using a combination (majority voting) of the n models
+    '''
     coord_only = data[['radarX','radarY']]
     coord_only = coord_only.drop_duplicates()
     coord_only = coord_only.reset_index(drop=True)
     
     sample_size = len(coord_only.index)//n
-    experiments = []
     for i in range(it):
         thresh_X = []
         thresh_Y = []
@@ -294,8 +297,6 @@ def n_fold_cross_validation(data,radar,n=10,it=1,seed=42,step_size=1000,folder='
             model = RandomForestClassifier(n_estimators=10)
             model.fit(X_train,y_train)
             models.append(model)
-            #TODO forall radarX,radarY in test set:
-            #calculate threshold
             radar_test = pd.merge(radar, test_coord, on=('radarX','radarY'), how='inner').reset_index(drop=True)
             for k in range(len(radar_test.index)):
                 print(i,"/",it,", ",j,"/",n,", ",k,"/",len(radar_test.index))
@@ -311,10 +312,10 @@ def n_fold_cross_validation(data,radar,n=10,it=1,seed=42,step_size=1000,folder='
                 thresh_X.append(radar_test['radarX'][k])
                 thresh_Y.append(radar_test['radarY'][k])
                 thresh_thresh.append(rain_thresh)
-                tweet_counter = sum(data_test[(data_test.radarX == radar_test['radarX'][k]) & (data_test.radarY == radar_test['radarY'][k])]['labels'].values.tolist())
+                tweet_counter = sum(data[(data.radarX == radar_test['radarX'][k]) & (data.radarY == radar_test['radarY'][k])]['labels'].values.tolist())#TODO tweet_counter should never be 0, since in every radar pixel, there was tweeted at least once. In practice however, tweet_counter happens to be 0 in some instances. This needs debugging.
                 thresh_num_tweets.append(tweet_counter)
                 if tweet_counter > 0:
-                    vals = data_test[(data_test.radarX == radar_test['radarX'][k]) & (data_test.radarY == radar_test['radarY'][k])]['rain'].values.tolist()
+                    vals = data[(data.labels == True) & (data.radarX == radar_test['radarX'][k]) & (data.radarY == radar_test['radarY'][k])]['rain'].values.tolist()
                     thresh_recall.append(sum([val >= rain_thresh for val in vals]))
                     thresh_overshoot.append(abs(min(0,min(vals)-rain_thresh)))
                 else:
@@ -350,45 +351,51 @@ def n_fold_cross_validation(data,radar,n=10,it=1,seed=42,step_size=1000,folder='
         local_df['num_tweets'] = thresh_num_tweets
         local_df['recall'] = thresh_recall
         local_df['overshoot'] = thresh_overshoot
-        #experiments.append(local_df)
         local_df.to_csv(folder+'n_threshold/n_threshold'+str(i)+'.csv',index=False)
-    #for i in range(len(experiments)):
-    #    print(i)
-                
     
-def analyse_twitter(folder='../../pandafied_data_backup/'):
+def analyse_twitter(folder='../../pandafied_data/',feature_file='pandafied_h5_radar.csv'):
+    '''
+        This function combines and analyses all the data and builds a model.
+    '''
     print(0)
-    rain,radar,tweets_XY = load_pandafied(folder=folder)
+    #first load the data
+    rain,radar,tweets_XY = load_pandafied(folder=folder,feature_file=feature_file)
+    #pick relevant columns from tweets_XY
     tweets_XY = tweets_XY[['radarX','radarY','date','text']]
+    #only pick tweets for which we have rain data (00-00-2010 to 01-december-2019)
     tweets_XY = tweets_XY[(tweets_XY.date >= 20100000) & (tweets_XY.date < 20191201)]
+    #collect all radar coordinates that tweets where twittered
     tweets_XY_coord = tweets_XY[['radarX','radarY']]
+    #remove duplicates
     tweets_XY_coord = tweets_XY_coord.drop_duplicates()
     print(1)
+    #pick relevant columns from rain
     rain = rain[['date','radarX','radarY','rain']]
     print(2)
+    #select only rain instances where rainfall was over 2000 and between the relevant dates
     rain = rain[(rain.rain >= 2000) & (rain.date >= 20100000) & (rain.date < 20191201)]
+    #merge rain with tweets_XY_coord to only keep coordinates where once in the interval was twittered
     rain = pd.merge(rain, tweets_XY_coord, on=('radarX','radarY'), how='inner')
-    print("len(rain.index)")
-    print(len(rain.index))
-    print(rain)
+    #pick relevant columns from radar
     radar = radar[['radarX','radarY','features']]
+    #since pandas saves terrain features as strings, they need to be converted back to something useful
     radar = make_features_panda_friendly(radar)
     print(4)
+    #combine rain data and terrain features in radar
     radar_rain = pd.merge(rain, radar, on=('radarX','radarY'), how='inner')
-    print("len(radar_rain.index)")
-    print(len(radar_rain.index))
-    print(radar_rain)
+    #de-allocate rain and radar to save memory
     del rain
     del radar
     print(4.5)
+    #left-join radar_rain with tweets_XY, to check when was tweeted and when not
     radar_rain_tweets = pd.merge(radar_rain, tweets_XY, on=('radarX','radarY','date'), how='left')
+    #de-allocate radar_rain to save memory
     del radar_rain
     print(5)
+    #make labels to allow fitting a model
     radar_rain_tweets = make_labels(radar_rain_tweets,'text')
-    print("len(radar_rain_tweets.index)")
-    print(len(radar_rain_tweets.index))
-    print(radar_rain_tweets)
     print(5.75)
+    #datastructure to log repeated experiment
     acc_train_hist = []
     precision_train_hist = []
     recall_train_hist = []
@@ -402,32 +409,46 @@ def analyse_twitter(folder='../../pandafied_data_backup/'):
     precision_test_neg_hist = []
     recall_test_neg_hist = []
     conf_matrix_test_hist = []
+    #loop that repeats building model
     for i in range(1):
+        #the amount of negative instances greatly outnumbers the number of positive instances
+        #so the next statement samples n negative samples, where n is the number of positive samples
         radar_rain_tweets_eq = equalize_data(radar_rain_tweets)
+        #split the data into a test and train set, in such a way that the radarX and radarY that are
+        #present, are disjoint
         X_train, X_test, y_train, y_test = split_on_radarXY(radar_rain_tweets_eq, test_size=0.33, random_state=i)
+        #initialize a model
         model = RandomForestClassifier(n_estimators=10)
         #model = autosklearn.classification.AutoSklearnClassifier()
         ###model = autosklearn.classification.AutoSklearnClassifier(include_estimators=["gradient_boosting", ], exclude_estimators=None,include_preprocessors=["no_preprocessing", ], exclude_preprocessors=None)
         #model = autosklearn.classification.AutoSklearnClassifier(include_estimators=["random_forest", ], exclude_estimators=None, exclude_preprocessors=None,time_left_for_this_task=30, per_run_time_limit=10,)
         print(6)
+        #train the model
         model.fit(X_train,y_train)
         print(7)
+        #predict on train set
         y_pred_train = model.predict(X_train)
         print(8)
+        #predict on test set
         y_pred_test = model.predict(X_test)
         print(9)
+        #score on train set
         train_accuracy = model.score(X_train,y_train)
         print(10)
+        #score on test set
         test_accuracy = model.score(X_test,y_test)
         print("train accuracy:")
         print(train_accuracy)
         print("test accuracy:")
         print(test_accuracy)
+        #make confusion matrices on train and test set
         conf_matrix_train = confusion_matrix(y_train, y_pred_train)
         conf_matrix_test = confusion_matrix(y_test, y_pred_test)
         print("confusion_matrix train")
         print(conf_matrix_train)
         print("accuracy train")
+        #calculate accuracy, precision and recall on the positive class, precision and recall
+        #on the negative class, on the train and test set
         try:
             acc_train = (conf_matrix_train[0][0]+conf_matrix_train[1][1])/(conf_matrix_train[0][0]+conf_matrix_train[0][1]+conf_matrix_train[1][0]+conf_matrix_train[1][1])
         except:
@@ -484,6 +505,7 @@ def analyse_twitter(folder='../../pandafied_data_backup/'):
         print(recall_test)
         print("\n----------------------------------")
         print("----------------------------------\n")
+        #log the experiments
         acc_train_hist.append(acc_train)
         precision_train_hist.append(precision_train)
         recall_train_hist.append(recall_train)
@@ -512,6 +534,7 @@ def analyse_twitter(folder='../../pandafied_data_backup/'):
     print("recall_test_hist avg, std:")
     print(np.average(recall_test_hist),np.std(recall_test_hist))
     
+    #save the experiments' results to disk
     hist = {}
     hist['acc_train_hist'] = acc_train_hist
     hist['precision_train_hist'] = precision_train_hist
@@ -530,7 +553,7 @@ def analyse_twitter(folder='../../pandafied_data_backup/'):
     with open('rain_only_hist2.json', 'w') as fp:
         json.dump(hist, fp)
 
-def make_threshold_plot(folder='../../pandafied_data_backup/'):
+def make_threshold_plot(folder='../../pandafied_data/'):
     print(0)
     rain,radar,tweets_XY = load_pandafied(folder=folder)
     tweets_XY = tweets_XY[['radarX','radarY','date','text']]
@@ -665,7 +688,7 @@ def make_threshold_plot(folder='../../pandafied_data_backup/'):
     threshold['threshold'] = thresh_thresh
     threshold.to_csv(folder+'threshold.csv',index=False)
 
-def make_n_fold_threshold(folder='../../pandafied_data_backup/'):
+def make_n_fold_threshold(folder='../../pandafied_data/'):
     print(0)
     rain,radar,tweets_XY = load_pandafied(folder=folder)
     tweets_XY = tweets_XY[['radarX','radarY','date','text']]

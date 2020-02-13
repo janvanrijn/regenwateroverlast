@@ -5,7 +5,7 @@ import pandafy_twitter
 import pandafy_twitter_add_XY
 import pandafy_h5_2007_2020
 
-def pandafy_all(super_folder='../../',encoder_file_name='results/pooling_narrow_experiment_AHN2_5m_SOBELCOMP/pool_1_encoder',history_file='results/pooling_narrow_experiment_AHN2_5m_SOBELCOMP/pool_1_history.json',parameters=None):
+def pandafy_all(super_folder='../../',encoder_file_name='results/pooling_narrow_experiment_AHN2_5m_SOBELCOMP/pool_1_encoder',history_file='results/pooling_narrow_experiment_AHN2_5m_SOBELCOMP/pool_1_history.json',parameters=None,radar_feat_save_name='pandafied_data/pandafied_h5_radar_img.csv'):
     '''
         This function performs all steps to build all panda dataframes in the right order from the raw data sources. These raw data sources must be put in the right folder in order for the methods to find them. These folders can be found by looking at the source code of the methods called below. The panda dataframes are saved in the folder ../../pandafied_data
         !!!WARNING!!!
@@ -21,7 +21,7 @@ def pandafy_all(super_folder='../../',encoder_file_name='results/pooling_narrow_
     print("pandafy_tiffs()")
     pandafy_tiffs.pandafy_tiffs(data_folder=super_folder+'AHN2_5m/',save_name=super_folder+'pandafied_data/lat_lon_to_filename.csv')
     print("add_image_to_h5_radar()")
-    add_image_to_h5_radar.add_image_to_h5_radar(save_name=super_folder+'pandafied_data/pandafied_h5_radar_img.csv',data_folder=super_folder+'AHN2_5m/',encoder_file_name=super_folder+encoder_file_name,history_file=super_folder+history_file,pandas_data_file_name=super_folder+'pandafied_data/pandafied_h5_radar.csv',file=super_folder+'pandafied_data/lat_lon_to_filename.csv',saved_file_list=super_folder+'pandafied_data/saved_file_list.json',parameters=parameters)
+    add_image_to_h5_radar.add_image_to_h5_radar(save_name=super_folder+radar_feat_save_name,data_folder=super_folder+'AHN2_5m/',encoder_file_name=super_folder+encoder_file_name,history_file=super_folder+history_file,pandas_data_file_name=super_folder+'pandafied_data/pandafied_h5_radar.csv',file=super_folder+'pandafied_data/lat_lon_to_filename.csv',saved_file_list=super_folder+'pandafied_data/saved_file_list.json',parameters=parameters)
     print("pandafy_twitter()")
     pandafy_twitter.pandafy_twitter(file_name=super_folder+'Twitter_cred/full_arch_2007-2020.txt',save_name=super_folder+'pandafied_data/pandafied_twitter_2007-2020.csv')
     print("pandafy_twitter_add_XY()")
