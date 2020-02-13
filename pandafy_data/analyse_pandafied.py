@@ -22,6 +22,9 @@ from copy import copy
 import ctypes
 import threading
 
+import autosklearn.classification#TODO this requires its own virtual environment with auto-sklearn installed, might be tricky to get working with all other code
+import sklearn.metrics
+
 def filter_tweets(data,search_terms):
     i = 0
     while i < len(data.index):
@@ -54,26 +57,16 @@ def make_XY_just_radar(data):
     return X,y
     
 def make_Xy(data):
-    print("make Xy 1")
     y=data['labels'].to_numpy(dtype=np.bool)
-    print("make Xy 2")
     d = len(data.index)
     w = len(data['features'].values.tolist()[0]) + 1
-    print("make XY 2.1")
     X=np.zeros(shape=(d,w),dtype=np.float32)
-    print("make XY 2.2")
     X[:,0:w-1]=np.array(data['features'].values.tolist(),dtype=np.float32)
-    print("make Xy 3")
     #X = np.multiply(X,100)
-    print("make Xy 4")
     #X = np.array(X,dtype=np.int8)
-    print("make Xy 5")
     #X = np.append(X, np.array(data['radarX'].values.tolist(),dtype=np.float32).reshape((len(data['radarX']), 1)), axis=1)
-    print("make Xy 6")
     #X = np.append(X, np.array(data['radarY'].values.tolist(),dtype=np.float32).reshape((len(data['radarY']), 1)), axis=1)
-    print("make Xy 7")
     X[:,w-1:w] = np.array(data['rain'].values.tolist(),dtype=np.float32).reshape((len(data['rain']), 1))
-    print("make Xy 8")
     return X,y
 
 def split_on_radarXY(data,test_size=0.33, random_state=42):
@@ -208,7 +201,7 @@ def load_pandafied(folder='../../pandafied_data/'):
     print("load 2")
     #radar = pd.read_csv(folder + 'pandafied_h5_radar_img.csv')#[0:5000]
     #radar = pd.read_csv(folder + 'pandafied_h5_radar_img_raw.csv')
-    radar = pd.read_csv(folder + 'pandafied_h5_radar_img_raw_NO_SOBEL.csv')
+    radar = pd.read_csv(folder + 'pandafied_h5_radar_img_raw_NO_SOBEL.csv')#[0:5000]
     #radar = pd.read_csv(folder + 'pandafied_h5_radar.csv')
     #file = pd.read_csv(folder + 'lat_lon_to_filename.csv')
     #tweets = pd.read_csv(folder + 'curated_twitter.csv')
@@ -261,7 +254,109 @@ def equalize_data(data):
     print(len(data))
     return data.reset_index(drop=True)
 
-def analyse_twitter(folder='../../pandafied_data/'):
+def n_fold_cross_validation(data,radar,n=10,it=1,seed=42,step_size=1000,folder='../../pandafied_data_backup/'):
+    coord_only = data[['radarX','radarY']]
+    coord_only = coord_only.drop_duplicates()
+    coord_only = coord_only.reset_index(drop=True)
+    
+    sample_size = len(coord_only.index)//n
+    experiments = []
+    for i in range(it):
+        thresh_X = []
+        thresh_Y = []
+        thresh_thresh = []
+        thresh_num_tweets = []
+        thresh_recall = []
+        thresh_overshoot = []
+        models = []
+        
+        index = np.arange(len(coord_only.index))
+        np.random.seed(i*seed)
+        np.random.shuffle(index)
+        np.random.seed(i+seed)
+        np.random.shuffle(index)
+        for j in range(n):
+            if j == 0:
+                test_index = index[0:sample_size]
+                train_index = index[sample_size:len(coord_only.index)]
+            if j == n-1:
+                test_index = index[j*sample_size:len(coord_only.index)]
+                train_index = index[0:j*sample_size]
+            else:
+                test_index = index[j*sample_size:(j+1)*sample_size]
+                train_index = np.concatenate((index[0:j*sample_size],index[(j+1)*sample_size:len(coord_only.index)]))
+            test_coord = coord_only.iloc[test_index]
+            train_coord = coord_only.iloc[train_index]
+            data_train = pd.merge(data, train_coord, on=('radarX','radarY'), how='inner').reset_index(drop=True)
+            data_test = pd.merge(data, test_coord, on=('radarX','radarY'), how='inner').reset_index(drop=True)
+            X_test, y_test = make_Xy(data_test)
+            X_train, y_train = make_Xy(data_train)
+            model = RandomForestClassifier(n_estimators=10)
+            model.fit(X_train,y_train)
+            models.append(model)
+            #TODO forall radarX,radarY in test set:
+            #calculate threshold
+            radar_test = pd.merge(radar, test_coord, on=('radarX','radarY'), how='inner').reset_index(drop=True)
+            for k in range(len(radar_test.index)):
+                print(i,"/",it,", ",j,"/",n,", ",k,"/",len(radar_test.index))
+                print()
+                rain_thresh = 0
+                while True:
+                    local_X = radar_test['features'][k].tolist()
+                    local_X.append(rain_thresh)
+                    y_pred = model.predict([local_X])
+                    if y_pred[0] or rain_thresh >= 50000:
+                        break
+                    rain_thresh += step_size
+                thresh_X.append(radar_test['radarX'][k])
+                thresh_Y.append(radar_test['radarY'][k])
+                thresh_thresh.append(rain_thresh)
+                tweet_counter = sum(data_test[(data_test.radarX == radar_test['radarX'][k]) & (data_test.radarY == radar_test['radarY'][k])]['labels'].values.tolist())
+                thresh_num_tweets.append(tweet_counter)
+                if tweet_counter > 0:
+                    vals = data_test[(data_test.radarX == radar_test['radarX'][k]) & (data_test.radarY == radar_test['radarY'][k])]['rain'].values.tolist()
+                    thresh_recall.append(sum([val >= rain_thresh for val in vals]))
+                    thresh_overshoot.append(abs(min(0,min(vals)-rain_thresh)))
+                else:
+                    thresh_recall.append(None)
+                    thresh_overshoot.append(None)
+        combined_model = combine(models)
+        unused_radar_c = radar[['radarX','radarY']]
+        unused_radar_c = unused_radar_c.drop_duplicates()
+        unused_radar_c = unused_radar_c.reset_index(drop=True)
+        unused_radar_c = pd.concat([unused_radar_c,coord_only]).drop_duplicates(keep=False)
+        unused_radar = pd.merge(radar, unused_radar_c, on=('radarX','radarY'), how='inner').reset_index(drop=True)
+        for j in range(len(unused_radar.index)):
+            print(i,"/",it,", ",j,"/",len(unused_radar.index))
+            print()
+            rain_thresh = 0
+            while True:
+                local_X = unused_radar['features'][j].tolist()
+                local_X.append(rain_thresh)
+                y_pred = combined_model.predict([local_X])
+                if y_pred[0] or rain_thresh >= 50000:
+                    break
+                rain_thresh += step_size
+            thresh_X.append(unused_radar['radarX'][j])
+            thresh_Y.append(unused_radar['radarY'][j])
+            thresh_thresh.append(rain_thresh)
+            thresh_num_tweets.append(None)
+            thresh_recall.append(None)
+            thresh_overshoot.append(None)
+        local_df = pd.DataFrame({})
+        local_df['radarX'] = thresh_X
+        local_df['radarY'] = thresh_Y
+        local_df['treshold'] = thresh_thresh
+        local_df['num_tweets'] = thresh_num_tweets
+        local_df['recall'] = thresh_recall
+        local_df['overshoot'] = thresh_overshoot
+        #experiments.append(local_df)
+        local_df.to_csv(folder+'n_threshold/n_threshold'+str(i)+'.csv',index=False)
+    #for i in range(len(experiments)):
+    #    print(i)
+                
+    
+def analyse_twitter(folder='../../pandafied_data_backup/'):
     print(0)
     rain,radar,tweets_XY = load_pandafied(folder=folder)
     tweets_XY = tweets_XY[['radarX','radarY','date','text']]
@@ -307,10 +402,13 @@ def analyse_twitter(folder='../../pandafied_data/'):
     precision_test_neg_hist = []
     recall_test_neg_hist = []
     conf_matrix_test_hist = []
-    for i in range(100):
+    for i in range(1):
         radar_rain_tweets_eq = equalize_data(radar_rain_tweets)
         X_train, X_test, y_train, y_test = split_on_radarXY(radar_rain_tweets_eq, test_size=0.33, random_state=i)
         model = RandomForestClassifier(n_estimators=10)
+        #model = autosklearn.classification.AutoSklearnClassifier()
+        ###model = autosklearn.classification.AutoSklearnClassifier(include_estimators=["gradient_boosting", ], exclude_estimators=None,include_preprocessors=["no_preprocessing", ], exclude_preprocessors=None)
+        #model = autosklearn.classification.AutoSklearnClassifier(include_estimators=["random_forest", ], exclude_estimators=None, exclude_preprocessors=None,time_left_for_this_task=30, per_run_time_limit=10,)
         print(6)
         model.fit(X_train,y_train)
         print(7)
@@ -432,8 +530,180 @@ def analyse_twitter(folder='../../pandafied_data/'):
     with open('rain_only_hist2.json', 'w') as fp:
         json.dump(hist, fp)
 
+def make_threshold_plot(folder='../../pandafied_data_backup/'):
+    print(0)
+    rain,radar,tweets_XY = load_pandafied(folder=folder)
+    tweets_XY = tweets_XY[['radarX','radarY','date','text']]
+    tweets_XY = tweets_XY[(tweets_XY.date >= 20100000) & (tweets_XY.date < 20191201)]
+    tweets_XY_coord = tweets_XY[['radarX','radarY']]
+    tweets_XY_coord = tweets_XY_coord.drop_duplicates()
+    print(1)
+    rain = rain[['date','radarX','radarY','rain']]
+    print(2)
+    rain = rain[(rain.rain >= 2000) & (rain.date >= 20100000) & (rain.date < 20191201)]
+    rain = pd.merge(rain, tweets_XY_coord, on=('radarX','radarY'), how='inner')
+    print("len(rain.index)")
+    print(len(rain.index))
+    print(rain)
+    radar = radar[['radarX','radarY','features']]
+    radar = make_features_panda_friendly(radar)
+    print(4)
+    radar_rain = pd.merge(rain, radar, on=('radarX','radarY'), how='inner')
+    print("len(radar_rain.index)")
+    print(len(radar_rain.index))
+    print(radar_rain)
+    del rain
+    print(4.5)
+    radar_rain_tweets = pd.merge(radar_rain, tweets_XY, on=('radarX','radarY','date'), how='left')
+    print(5)
+    radar_rain_tweets = make_labels(radar_rain_tweets,'text')
+    print("len(radar_rain_tweets.index)")
+    print(len(radar_rain_tweets.index))
+    print(radar_rain_tweets)
+    print(5.75)
+    
+    radar_rain_tweets_eq = equalize_data(radar_rain_tweets)
+    #X_train, X_test, y_train, y_test = split_on_radarXY(radar_rain_tweets_eq, test_size=0.0, random_state=42)
+    X_train,y_train=make_Xy(radar_rain_tweets_eq)
+    model = RandomForestClassifier(n_estimators=10)
+    print(6)
+    model.fit(X_train,y_train)
+    print(7)
+    y_pred_train = model.predict(X_train)
+    print(8)
+    y_pred_test = model.predict(X_train)
+    print(9)
+    train_accuracy = model.score(X_train,y_train)
+    print(10)
+    test_accuracy = model.score(X_train,y_train)
+    print("train accuracy:")
+    print(train_accuracy)
+    print("test accuracy:")
+    print(test_accuracy)
+    conf_matrix_train = confusion_matrix(y_train, y_pred_train)
+    conf_matrix_test = confusion_matrix(y_train, y_pred_test)
+    print("confusion_matrix train")
+    print(conf_matrix_train)
+    print("accuracy train")
+    try:
+        acc_train = (conf_matrix_train[0][0]+conf_matrix_train[1][1])/(conf_matrix_train[0][0]+conf_matrix_train[0][1]+conf_matrix_train[1][0]+conf_matrix_train[1][1])
+    except:
+        acc_train = None
+    print(acc_train)
+    try:
+        precision_train = conf_matrix_train[1][1]/(conf_matrix_train[1][1]+conf_matrix_train[0][1]) 
+    except:
+        precision_train = None
+    try:
+        precision_train_neg = conf_matrix_train[0][0]/(conf_matrix_train[1][0]+conf_matrix_train[0][0]) 
+    except:
+        precision_train_neg = None
+    try:
+        recall_train = conf_matrix_train[1][1]/(conf_matrix_train[1][1]+conf_matrix_train[1][0]) 
+    except:
+        recall_train = None
+    try:
+        recall_train_neg = conf_matrix_train[0][0]/(conf_matrix_train[0][0]+conf_matrix_train[0][1]) 
+    except:
+        recall_train_neg = None
+    print("precision_train")
+    print(precision_train)
+    print("recall_train")
+    print(recall_train)
+        
+    print("confusion_matrix test")
+    print(conf_matrix_test)
+    print("accuracy test")
+    try:
+        acc_test = (conf_matrix_test[0][0]+conf_matrix_test[1][1])/(conf_matrix_test[0][0]+conf_matrix_test[0][1]+conf_matrix_test[1][0]+conf_matrix_test[1][1])
+    except:
+        acc_test = None
+    print(acc_test)
+    try:
+        precision_test = conf_matrix_test[1][1]/(conf_matrix_test[1][1]+conf_matrix_test[0][1]) 
+    except:
+        precision_test = None
+    try:
+        precision_test_neg = conf_matrix_test[0][0]/(conf_matrix_test[1][0]+conf_matrix_test[0][0]) 
+    except:
+        precision_test_neg = None
+    try:
+        recall_test = conf_matrix_test[1][1]/(conf_matrix_test[1][1]+conf_matrix_test[1][0]) 
+    except:
+        recall_test = None
+    try:
+        recall_test_neg = conf_matrix_test[0][0]/(conf_matrix_test[0][0]+conf_matrix_test[0][1]) 
+    except:
+        recall_test_neg = None
+    print("precision_test")
+    print(precision_test)
+    print("recall_test")
+    print(recall_test)
+    
+    #radar = pd.merge(radar, tweets_XY_coord, on=('radarX','radarY'), how='inner')
+    thresh_X = []
+    thresh_Y = []
+    thresh_thresh = []
+    step_size = 100
+    for i in range(len(radar.index)):
+        print(i, len(radar.index))
+        rain_thresh = 0
+        while True:
+            X = radar['features'][i].tolist()
+            X.append(rain_thresh)
+            y_pred = model.predict([X])
+            #print(rain_thresh,y_pred)
+            if y_pred[0] or rain_thresh >= 50000:
+                break
+            rain_thresh += step_size
+        thresh_X.append(radar['radarX'][i])
+        thresh_Y.append(radar['radarY'][i])
+        thresh_thresh.append(rain_thresh)
+    threshold = pd.DataFrame({})
+    threshold['radarX'] = thresh_X
+    threshold['radarY'] = thresh_Y
+    threshold['threshold'] = thresh_thresh
+    threshold.to_csv(folder+'threshold.csv',index=False)
+
+def make_n_fold_threshold(folder='../../pandafied_data_backup/'):
+    print(0)
+    rain,radar,tweets_XY = load_pandafied(folder=folder)
+    tweets_XY = tweets_XY[['radarX','radarY','date','text']]
+    tweets_XY = tweets_XY[(tweets_XY.date >= 20100000) & (tweets_XY.date < 20191201)]
+    tweets_XY_coord = tweets_XY[['radarX','radarY']]
+    tweets_XY_coord = tweets_XY_coord.drop_duplicates()
+    print(1)
+    rain = rain[['date','radarX','radarY','rain']]
+    print(2)
+    rain = rain[(rain.rain >= 2000) & (rain.date >= 20100000) & (rain.date < 20191201)]
+    rain = pd.merge(rain, tweets_XY_coord, on=('radarX','radarY'), how='inner')
+    print("len(rain.index)")
+    print(len(rain.index))
+    print(rain)
+    radar = radar[['radarX','radarY','features']]
+    radar = make_features_panda_friendly(radar)
+    print(4)
+    radar_rain = pd.merge(rain, radar, on=('radarX','radarY'), how='inner')
+    print("len(radar_rain.index)")
+    print(len(radar_rain.index))
+    print(radar_rain)
+    del rain
+    print(4.5)
+    radar_rain_tweets = pd.merge(radar_rain, tweets_XY, on=('radarX','radarY','date'), how='left')
+    print(5)
+    radar_rain_tweets = make_labels(radar_rain_tweets,'text')
+    print("len(radar_rain_tweets.index)")
+    print(len(radar_rain_tweets.index))
+    print(radar_rain_tweets)
+    print(5.75)
+    
+    radar_rain_tweets_eq = equalize_data(radar_rain_tweets)
+    n_fold_cross_validation(radar_rain_tweets_eq,radar)
+
 def analyse_pandafied():
     analyse_twitter()
 
 if __name__ == '__main__':
-    analyse_pandafied()
+    #analyse_pandafied()
+    #make_threshold_plot()
+    make_n_fold_threshold()

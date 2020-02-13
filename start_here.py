@@ -109,39 +109,39 @@ def start_here():
     #can be easily reran by typing "experiment_name.py run" and it's results
     #can be loaded by typing "experiment_name.py load".
     #Below is an example of how to set up an experiment.
+        
+    parameters = {}
+    parameters['experiment_name'] = 'tutorial_experiment'#This name must be unique, since it is used to store the results
+    parameters['experiment_type'] = 'varying_pooling_factor'#This string defines the type of experiment, see "experiments/class_experiment.py" for all implemented types
+    parameters['encoder_type'] = 'shallow_narrow_cnn'#This stirng defines the type of autoencoder that is built, see "auto_encoder/auto_encoder_train.py" for all implemented types
+    parameters['epochs'] = 10#The amount of epochs that the autoencoder is trained, it is set to only 10 for this tutorial
+    parameters['batch_size'] = 256
+    parameters['x'] = 200#This parameter defines the number of pixels sampled from AHN2_5m in the x direction (horizontal). This sample is used to train the autoencoder and to generate features. The sample dimensions must match the input of the autoencoder, so if different dimensions are desired, a new autoencoder must be trained.
+    parameters['y'] = 200#This parameter defines the number of pixels sampled from AHN2_5m in the y direction (vertical). This sample is used to train the autoencoder and to generate features. The sample dimensions must match the input of the autoencoder, so if different dimensions are desired, a new autoencoder must be trained.
+    parameters['data_set'] = 'AHN2_5m_random'#Method to get the data. This calls the "auto_encoder/load_random_tif.py" method. It is also possible to load MNIST, using 'MNIST'.
+    parameters['normalize_data'] = True#This sets whether or not the input data is cast between 0.0 and 1.0. Since an autoencoder can usually only output between 0.0 and 1.0, it is highly recommended to set 'normalize_data' to True.
+    parameters['train_part'] = 50#number of entries in train set. For the purpose of the tutorial this is set to quite low. Recommended are values of 1000 to 20000. This requires a lot of RAM though. I advise implementing that every batch is loaded from disk seperately.
+    parameters['test_part'] = 10#number of entries in test set
+    parameters['val_part'] = 10#number of entries in validation set
+    parameters['n_data'] = parameters['train_part']+parameters['test_part']+parameters['val_part']#Number of entries in the test, train and validation set combined.
+    parameters['print_results'] = False#Whether or not to print the results. Pretty sure this does nothing anymore.
+    parameters['seed'] = 42#Seed for pseudorandom processes. Of course 42 was chosen. We apologize for the inconvenience.
+    parameters['clamp'] = True#Whether of not to clamp the data between two values. Since the AHN2_5m data has extreme outliers, it is highly recommended to set this to True.
+    parameters['uc'] = 210 #upper clamp value. Set in such a way that the outliers are clamped, but the usual data is not.
+    parameters['lc'] = -15 #lower clamp value
+    parameters['optimizer'] = 'adadelta'
+    parameters['loss'] = 'binary_crossentropy'
+    parameters['filter'] = 'sobel_components'#Whether or not to applly the sobel filter during preprocessing. To know what the sobel filter does, please check: https://en.wikipedia.org/wiki/Sobel_operator
+    parameters['downsampling'] = False #This is not implemented
+    parameters['downsample_factor'] = 4 #This is not implemented
+    parameters['data_folder'] = '../AHN2_5m/'#Path to the AHN2_5m folder containing the .tif files
+    parameters['results_folder'] = '../results/' + parameters['experiment_name'] + '/'#path to where the results of the experiment are stored.
+    
+    parameters['pooling_factor_vars'] = [1,2,5,10]#parameters specific to this experiment. Four autoencoders will be build and trained, containing an inner-most pooling layer with a factor of 1, 2, 5 and 10.
+        
     skip_train_autoencoder = True
     if not skip_train_autoencoder:
         import experiments.class_experiment as class_experiment
-        
-        parameters = {}
-        parameters['experiment_name'] = 'tutorial_experiment'#This name must be unique, since it is used to store the results
-        parameters['experiment_type'] = 'varying_pooling_factor'#This string defines the type of experiment, see "experiments/class_experiment.py" for all implemented types
-        parameters['encoder_type'] = 'shallow_narrow_cnn'#This stirng defines the type of autoencoder that is built, see "auto_encoder/auto_encoder_train.py" for all implemented types
-        parameters['epochs'] = 10#The amount of epochs that the autoencoder is trained, it is set to only 10 for this tutorial
-        parameters['batch_size'] = 256
-        parameters['x'] = 200#This parameter defines the number of pixels sampled from AHN2_5m in the x direction (horizontal). This sample is used to train the autoencoder and to generate features. The sample dimensions must match the input of the autoencoder, so if different dimensions are desired, a new autoencoder must be trained.
-        parameters['y'] = 200#This parameter defines the number of pixels sampled from AHN2_5m in the y direction (vertical). This sample is used to train the autoencoder and to generate features. The sample dimensions must match the input of the autoencoder, so if different dimensions are desired, a new autoencoder must be trained.
-        parameters['data_set'] = 'AHN2_5m_random'#Method to get the data. This calls the "auto_encoder/load_random_tif.py" method. It is also possible to load MNIST, using 'MNIST'.
-        parameters['normalize_data'] = True#This sets whether or not the input data is cast between 0.0 and 1.0. Since an autoencoder can usually only output between 0.0 and 1.0, it is highly recommended to set 'normalize_data' to True.
-        parameters['train_part'] = 50#number of entries in train set. For the purpose of the tutorial this is set to quite low. Recommended are values of 1000 to 20000. This requires a lot of RAM though. I advise implementing that every batch is loaded from disk seperately.
-        parameters['test_part'] = 10#number of entries in test set
-        parameters['val_part'] = 10#number of entries in validation set
-        parameters['n_data'] = parameters['train_part']+parameters['test_part']+parameters['val_part']#Number of entries in the test, train and validation set combined.
-        parameters['print_results'] = False#Whether or not to print the results. Pretty sure this does nothing anymore.
-        parameters['seed'] = 42#Seed for pseudorandom processes. Of course 42 was chosen. We apologize for the inconvenience.
-        parameters['clamp'] = True#Whether of not to clamp the data between two values. Since the AHN2_5m data has extreme outliers, it is highly recommended to set this to True.
-        parameters['uc'] = 210 #upper clamp value. Set in such a way that the outliers are clamped, but the usual data is not.
-        parameters['lc'] = -15 #lower clamp value
-        parameters['optimizer'] = 'adadelta'
-        parameters['loss'] = 'binary_crossentropy'
-        parameters['filter'] = 'sobel_components'#Whether or not to applly the sobel filter during preprocessing. To know what the sobel filter does, please check: https://en.wikipedia.org/wiki/Sobel_operator
-        parameters['downsampling'] = False #This is not implemented
-        parameters['downsample_factor'] = 4 #This is not implemented
-        parameters['data_folder'] = '../AHN2_5m/'#Path to the AHN2_5m folder containing the .tif files
-        parameters['results_folder'] = '../results/' + parameters['experiment_name'] + '/'#path to where the results of the experiment are stored.
-        
-        parameters['pooling_factor_vars'] = [1,2,5,10]#parameters specific to this experiment. Four autoencoders will be build and trained, containing an inner-most pooling layer with a factor of 1, 2, 5 and 10.
-        
         #Now that the parameters are set, it is time to make an instance of an experiment:
         experiment = class_experiment.Experiment(parameters)
         #To run the experiment:
@@ -166,7 +166,9 @@ def start_here():
     skip_pandafy = False
     if not skip_pandafy:
         import pandafy_data.pandafy_all as pandafy_all
-        pandafy_all.pandafy_all(super_folder='../')
+        encoder_file_name = 'results/tutorial_experiment/pool_1_encoder'#encoder trained in previous step
+        history_file = 'results/tutorial_experiment/pool_1_history.json'#history of encoder in previous step
+        pandafy_all.pandafy_all(super_folder='../',encoder_file_name=encoder_file_name,history_file=history_file,parameters=parameters)
     
     #---------------------------------------------------------------------------
     #Analyze data / build model

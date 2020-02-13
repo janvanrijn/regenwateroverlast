@@ -4,23 +4,22 @@ from analyse_pandafied import load_encoder
 import sys
 import json
 
-def add_image_to_h5_radar(save_name='../../pandafied_data/pandafied_h5_radar_img.csv',data_folder='../../AHN2_5m/',encoder_file_name='../../results/pooling_narrow_experiment_AHN2_5m_SOBELCOMP/pool_1_encoder',history_file='../../results/pooling_narrow_experiment_AHN2_5m_SOBELCOMP/pool_1_history.json',pandas_data_file_name='../../pandafied_data/pandafied_h5_radar.csv',file='../../pandafied_data/lat_lon_to_filename.csv',saved_file_list='../../pandafied_data/saved_file_list.json'):
+def add_image_to_h5_radar(save_name='../../pandafied_data/pandafied_h5_radar_img.csv',data_folder='../../AHN2_5m/',encoder_file_name='../../results/pooling_narrow_experiment_AHN2_5m_SOBELCOMP/pool_1_encoder',history_file='../../results/pooling_narrow_experiment_AHN2_5m_SOBELCOMP/pool_1_history.json',pandas_data_file_name='../../pandafied_data/pandafied_h5_radar.csv',file='../../pandafied_data/lat_lon_to_filename.csv',saved_file_list='../../pandafied_data/saved_file_list.json',parameters=None):
     '''
         This function can add image data from AHN2_5m for each radar pixel. For now however, it only adds the features calculated by the specified autoencoder to save on RAM and disk space.
     '''
-    parameters = {}
-    parameters['data_folder']=data_folder
-    #parameters['data_folder']=
-    parameters['x']=200
-    parameters['y']=200
-    parameters['uc']=210
-    parameters['lc']=-15
-    parameters['clamp']=True
-    parameters['normalize_data']=True
-    parameters['filter'] = 'identity'#'sobel_components'
-    parameters['encoder_type']='shallow_narrow_cnn'
+    if parameters is None:
+        parameters = {}
+        parameters['data_folder']=data_folder
+        parameters['x']=200
+        parameters['y']=200
+        parameters['uc']=210
+        parameters['lc']=-15
+        parameters['clamp']=True
+        parameters['normalize_data']=True
+        parameters['filter'] = 'identity'#'sobel_components'
+        parameters['encoder_type']='shallow_narrow_cnn'
     parameters['scale_cm']=500
-    #parameters['encoder_file_name'] = '../../results/pooling_narrow_experiment_AHN2_5m_SOBEL2/pool_5_encoder'
     parameters['encoder_file_name'] = encoder_file_name
     encoder = load_encoder(parameters['encoder_file_name'])
     
