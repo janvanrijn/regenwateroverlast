@@ -202,7 +202,7 @@ def load_pandafied(folder='../../pandafied_data/',feature_file='pandafied_h5_rad
     #radar = pd.read_csv(folder + 'pandafied_h5_radar_img.csv')#[0:5000]
     #radar = pd.read_csv(folder + 'pandafied_h5_radar_img_raw.csv')
     #radar = pd.read_csv(folder + 'pandafied_h5_radar_img_raw_NO_SOBEL.csv')#[0:5000]
-    radar = pd.read_csv(folder + feature_file)[0:5000]
+    radar = pd.read_csv(folder + feature_file)#[0:5000]
     #radar = pd.read_csv(folder + 'pandafied_h5_radar.csv')
     #file = pd.read_csv(folder + 'lat_lon_to_filename.csv')
     #tweets = pd.read_csv(folder + 'curated_twitter.csv')
@@ -257,7 +257,7 @@ def equalize_data(data):
 
 def n_fold_cross_validation(data,radar,n=10,it=1,seed=42,step_size=1000,folder='../../pandafied_data/'):
     '''
-        This function builds n models on n disjoint train sets and tests where the rain threshold lies on n disjoint test sets. Then it tests where the threshold lies on the points that are not in the train and test set, using a combination (majority voting) of the n models
+        This function builds n models on n disjoint train sets and tests where the rain threshold lies on n disjoint test sets. Then it tests where the threshold lies on the points that are not in the train and test set, using a combination (majority voting) of the n models. This methods still needs debugging.
     '''
     coord_only = data[['radarX','radarY']]
     coord_only = coord_only.drop_duplicates()
@@ -375,6 +375,8 @@ def analyse_twitter(folder='../../pandafied_data/',feature_file='pandafied_h5_ra
     #select only rain instances where rainfall was over 2000 and between the relevant dates
     rain = rain[(rain.rain >= 2000) & (rain.date >= 20100000) & (rain.date < 20191201)]
     #merge rain with tweets_XY_coord to only keep coordinates where once in the interval was twittered
+    #TODO somehow the number of tweets per radar pixel can be 0 when calling the n_fold_cross_validation()
+    #function. This still needs debugging.
     rain = pd.merge(rain, tweets_XY_coord, on=('radarX','radarY'), how='inner')
     #pick relevant columns from radar
     radar = radar[['radarX','radarY','features']]
@@ -699,6 +701,9 @@ def make_n_fold_threshold(folder='../../pandafied_data/'):
     rain = rain[['date','radarX','radarY','rain']]
     print(2)
     rain = rain[(rain.rain >= 2000) & (rain.date >= 20100000) & (rain.date < 20191201)]
+    #merge rain with tweets_XY_coord to only keep coordinates where once in the interval was twittered
+    #TODO somehow the number of tweets per radar pixel can be 0 when calling the n_fold_cross_validation()
+    #function. This still needs debugging.
     rain = pd.merge(rain, tweets_XY_coord, on=('radarX','radarY'), how='inner')
     print("len(rain.index)")
     print(len(rain.index))
