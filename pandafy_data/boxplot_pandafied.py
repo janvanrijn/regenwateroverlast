@@ -13,8 +13,8 @@ with open('downsample_sobel_hist.json') as json_file:
 with open('downsample_no_sobel_hist.json') as json_file:
     data_downsample_no_sobel = json.load(json_file)
 
-with open('rain_only_hist2.json') as json_file:
-    data_only_rain = json.load(json_file)
+with open('on_old_data.json') as json_file:
+    data_old = json.load(json_file)
 
 with open('downsample_no_sobel_only3.json') as json_file:
     data_downsample_no_sobel_only_feat = json.load(json_file)
@@ -66,20 +66,20 @@ print("downsample_no_sobel_easy")
 print(np.average(downsample_no_sobel_acc-downsample_no_sobel_easy))
 print(np.std(downsample_no_sobel_acc-downsample_no_sobel_easy))
 
-only_rain_easy = []
-for matrix in data_only_rain['conf_matrix_test_hist']:
+old_easy = []
+for matrix in data_old['conf_matrix_test_hist']:
     matrix = np.array(matrix)
     all_neg = (matrix[0][0]+matrix[0][1])/np.sum(matrix)
     all_pos = (matrix[1][0]+matrix[1][1])/np.sum(matrix)
-    only_rain_easy.append(max(all_neg,all_pos))
+    old_easy.append(max(all_neg,all_pos))
 print(all_neg,all_pos)
-only_rain_easy = np.array(only_rain_easy)
-only_rain_acc = np.array(data_only_rain['acc_test_hist'])
-only_rain_better = only_rain_acc-only_rain_easy
+old_easy = np.array(old_easy)
+old_acc = np.array(data_old['acc_test_hist'])
+old_better = old_acc-old_easy
 
-print("only_rain_easy")
-print(np.average(only_rain_acc-only_rain_easy))
-print(np.std(only_rain_acc-only_rain_easy))
+print("old_easy")
+print(np.average(old_acc-old_easy))
+print(np.std(old_acc-old_easy))
 
 only_feat_easy = []
 for matrix in data_downsample_no_sobel_only_feat['conf_matrix_test_hist']:
@@ -107,37 +107,37 @@ if plot_type == 'acc':
     df['ae sobel acc'] = data_ae_sobel['acc_test_hist']
     df['ds sobel acc'] = data_downsample_sobel['acc_test_hist']
     df['ds no sobel acc'] = data_downsample_no_sobel['acc_test_hist']
-    df['only rain acc'] = data_only_rain['acc_test_hist']
+    df['old acc'] = data_old['acc_test_hist']
     df['only feat acc'] = data_downsample_no_sobel_only_feat['acc_test_hist']
 elif plot_type == 'prec':
     df['ae sobel prec pos'] = data_ae_sobel['precision_test_hist']
     df['ds sobel prec pos'] = data_downsample_sobel['precision_test_hist']
     df['ds no sobel prec pos'] = data_downsample_no_sobel['precision_test_hist']
-    df['only rain prec pos'] = data_only_rain['precision_test_hist']
+    df['old prec pos'] = data_old['precision_test_hist']
     df['only feat prec pos'] = data_downsample_no_sobel_only_feat['precision_test_hist']
 elif plot_type == 'rec':
     df['ae sobel rec pos'] = data_ae_sobel['recall_test_hist']
     df['ds sobel rec pos'] = data_downsample_sobel['recall_test_hist']
     df['ds no sobel rec pos'] = data_downsample_no_sobel['recall_test_hist']
-    df['only rain rec pos'] = data_only_rain['recall_test_hist']
+    df['old rec pos'] = data_old['recall_test_hist']
     df['only feat rec pos'] = data_downsample_no_sobel_only_feat['recall_test_hist']
 elif plot_type == 'prec_neg':
     df['ae sobel prec neg'] = data_ae_sobel['precision_test_neg_hist']
     df['ds sobel prec neg'] = data_downsample_sobel['precision_test_neg_hist']
     df['ds no sobel prec neg'] = data_downsample_no_sobel['precision_test_neg_hist']
-    df['only rain prec neg'] = data_only_rain['precision_test_neg_hist']
+    df['old prec neg'] = data_old['precision_test_neg_hist']
     df['only feat prec neg'] = data_downsample_no_sobel_only_feat['precision_test_neg_hist']
 elif plot_type == 'rec_neg':
     df['ae sobel rec neg'] = data_ae_sobel['recall_test_neg_hist']
     df['ds sobel rec neg'] = data_downsample_sobel['recall_test_neg_hist']
     df['ds no sobel rec neg'] = data_downsample_no_sobel['recall_test_neg_hist']
-    df['only rain rec neg'] = data_only_rain['recall_test_neg_hist']
+    df['old rec neg'] = data_old['recall_test_neg_hist']
     df['only feat rec neg'] = data_downsample_no_sobel_only_feat['recall_test_neg_hist']
 elif plot_type == 'better':
     df['ae sobel better'] = ae_sobel_better
     df['ds sobel better'] = downsample_sobel_better
     df['ds no sobel better'] = downsample_no_sobel_better
-    df['only rain better'] = only_rain_better
+    df['old better'] = old_better
     df['only feat better'] = only_feat_better
 else:
     print("uknown plot type")

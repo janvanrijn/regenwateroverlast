@@ -353,7 +353,7 @@ def n_fold_cross_validation(data,radar,n=10,it=1,seed=42,step_size=1000,folder='
         local_df['overshoot'] = thresh_overshoot
         local_df.to_csv(folder+'n_threshold/n_threshold'+str(i)+'.csv',index=False)
     
-def analyse_twitter(folder='../../pandafied_data/',feature_file='pandafied_h5_radar.csv'):
+def analyse_twitter(folder='../../pandafied_data/',feature_file='pandafied_h5_radar_img_raw_NO_SOBEL.csv'):
     '''
         This function combines and analyses all the data and builds a model.
     '''
@@ -374,6 +374,7 @@ def analyse_twitter(folder='../../pandafied_data/',feature_file='pandafied_h5_ra
     print(2)
     #select only rain instances where rainfall was over 2000 and between the relevant dates
     rain = rain[(rain.rain >= 2000) & (rain.date >= 20100000) & (rain.date < 20191201)]
+    #rain = rain[(rain.rain >= 2000) & (rain.date >= 20170000) & (rain.date < 20180000)]
     #merge rain with tweets_XY_coord to only keep coordinates where once in the interval was twittered
     #TODO somehow the number of tweets per radar pixel can be 0 when calling the n_fold_cross_validation()
     #function. This still needs debugging.
@@ -412,7 +413,7 @@ def analyse_twitter(folder='../../pandafied_data/',feature_file='pandafied_h5_ra
     recall_test_neg_hist = []
     conf_matrix_test_hist = []
     #loop that repeats building model
-    for i in range(1):
+    for i in range(100):
         #the amount of negative instances greatly outnumbers the number of positive instances
         #so the next statement samples n negative samples, where n is the number of positive samples
         radar_rain_tweets_eq = equalize_data(radar_rain_tweets)
@@ -732,6 +733,6 @@ def analyse_pandafied():
     analyse_twitter()
 
 if __name__ == '__main__':
-    #analyse_pandafied()
+    analyse_pandafied()
     #make_threshold_plot()
-    make_n_fold_threshold()
+    #make_n_fold_threshold()
